@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -24,24 +24,23 @@ class MyApp extends StatelessWidget {
     final openddPdf = await rootBundle.load(openFilePath);
     var doc = openddPdf.buffer.asUint8List();
 
-    var tempDir = Directory.systemTemp.createTempSync();
-    int index = 1;
+    // var tempDir = Directory.systemTemp.createTempSync();
+    // int index = 1;
 
     await for (var page in Printing.raster(doc, dpi: dpi)) {
       final image = await page.toImage();
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
 
-      if (kDebugMode) {
-        print(tempDir.path);
-      }
-      await File("${tempDir.path}/tmp$index.png")
-          .writeAsBytes(data!.buffer.asUint8List());
+      // await File("${tempDir.path}/tmp$index.png")
+      //     .writeAsBytes(data!.buffer.asUint8List());
       pdf.addPage(pw.Page(
+        pageFormat:
+            PdfPageFormat(image.width.toDouble(), image.height.toDouble()),
         build: (pw.Context context) => pw.Center(
-            child: pw.Image(pw.MemoryImage(data.buffer.asUint8List()))),
+            child: pw.Image(pw.MemoryImage(data!.buffer.asUint8List()))),
       ));
 
-      index++;
+      // index++;
     }
     return file.writeAsBytes(await pdf.save());
   }
