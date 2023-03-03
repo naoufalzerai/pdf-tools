@@ -3,10 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  bitsdojo_window_windows
   pdfx
   printing
-  screen_retriever
-  window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

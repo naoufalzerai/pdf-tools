@@ -1,19 +1,25 @@
 import 'dart:io';
 import 'dart:ui' as ui;
+
+import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:window_manager/window_manager.dart';
+import 'package:printing/printing.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Must add this line.
-  await windowManager.ensureInitialized();
+
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    await windowManager.setSize(const Size(450, 300));
+    doWhenWindowReady(() {
+      const initialSize = Size(600, 300);
+      appWindow.minSize = initialSize;
+      appWindow.maxSize = initialSize;
+      appWindow.size = initialSize;
+      appWindow.alignment = Alignment.center;
+      appWindow.show();
+    });
   }
   runApp(const MyApp());
 }
@@ -28,15 +34,126 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   String _openFilePath = "";
+  bool loading = false;
   String? _encryption = "";
   double _dpi = 200;
+  @override
+  Widget build(BuildContext context) {
+    // test();
+    return MaterialApp(
+      home: Scaffold(
+        //appBar: AppBar(title: const Text("PDF Tools")),
+        body: Row(
+          children: [
+            RightSide(
+                body: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                          onPressed: (loading) ? null : () => openFile(),
+                          child: Flex(
+                            direction: Axis.vertical,
+                            children: const [
+                              Icon(Icons.folder),
+                              Text("Open pdf")
+                            ],
+                          )),
+                    ),
+                    const SizedBox(
+                      width: 10,
+                    ),
+                    Expanded(
+                      child: ElevatedButton(
+                          onPressed: (_openFilePath.isEmpty || loading)
+                              ? null
+                              : () => saveFile(),
+                          child: Flex(
+                            direction: Axis.vertical,
+                            children: const [
+                              Icon(Icons.save),
+                              Text("save"),
+                            ],
+                          )),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 10, bottom: 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                              borderRadius:
+                                  const BorderRadius.all(Radius.circular(5)),
+                              border: Border.all(
+                                color: Colors.grey,
+                                width: 1,
+                              )),
+                          padding: const EdgeInsets.only(top: 10, bottom: 10),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 5, right: 5),
+                            child: Text(_openFilePath),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    const Text("Quality :"),
+                    Expanded(
+                      child: Slider(
+                        min: 100,
+                        max: 500,
+                        divisions: 20,
+                        label: _dpi.toString(),
+                        value: _dpi,
+                        onChanged: (_openFilePath.isEmpty || loading)
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _dpi = value;
+                                });
+                              },
+                      ),
+                    ),
+                    Text(_dpi.toString()),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  enabled: (_openFilePath.isNotEmpty),
+                  decoration: const InputDecoration(
+                    labelText: 'Encrypt (Optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  controller: TextEditingController(text: _encryption),
+                  onSubmitted: (value) {
+                    setState(() {
+                      _encryption = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+              ]),
+            ))
+          ],
+        ),
+      ),
+    );
+  }
+
   Future convert(String savePath) async {
     final pdf = pw.Document();
     final file = File(savePath);
-
-    final openddPdf = await rootBundle.load(_openFilePath);
-    var doc = openddPdf.buffer.asUint8List();
-
+    final doc = await File(_openFilePath).readAsBytes();
     // var tempDir = Directory.systemTemp.createTempSync();
     // int index = 1;
 
@@ -60,111 +177,79 @@ class _MyAppState extends State<MyApp> {
   }
 
   void openFile() async {
+    setState(() {
+      loading = true;
+    });
     FilePickerResult? result = await FilePicker.platform
         .pickFiles(allowMultiple: false, lockParentWindow: true);
     if (result != null) {
       setState(() {
         _openFilePath = result.files.first.path!;
       });
-    } else {
-      // User canceled the picker
     }
+    setState(() {
+      loading = false;
+    });
   }
 
   Future saveFile() async {
+    setState(() {
+      loading = true;
+    });
     var savePath = await FilePicker.platform
         .saveFile(allowedExtensions: ['pdf'], lockParentWindow: true);
     if (savePath != null) {
-      return await convert(savePath);
-    } else {
-      // User canceled the picker
+      await convert(savePath);
     }
+    setState(() {
+      loading = false;
+    });
   }
+}
 
+final backgroundStartColor = Colors.grey.shade50;
+final backgroundEndColor = Colors.grey.shade300;
+
+// ignore: must_be_immutable
+class RightSide extends StatelessWidget {
+  RightSide({Key? key, required this.body}) : super(key: key);
+  Widget body;
   @override
   Widget build(BuildContext context) {
-    // test();
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: const Text("PDF Tools")),
-        body: SizedBox(
-          width: double.infinity,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
+    return Expanded(
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [backgroundStartColor, backgroundEndColor],
+              stops: const [0.0, 1.0]),
+        ),
+        child: Column(children: [
+          WindowTitleBarBox(
+            child: Row(
               children: [
-                Text(_openFilePath),
-                Column(children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    mainAxisSize: MainAxisSize.max,
-                    children: [
-                      const Text("Quality :"),
-                      Expanded(
-                        child: Slider(
-                          min: 100,
-                          max: 500,
-                          divisions: 20,
-                          label: _dpi.toString(),
-                          value: _dpi,
-                          onChanged: (value) {
-                            setState(() {
-                              _dpi = value;
-                            });
-                          },
-                        ),
-                      ),
-                      Text(_dpi.toString()),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Encrypt (Optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                    controller: TextEditingController(text: _encryption),
-                    onSubmitted: (value) {
-                      setState(() {
-                        _encryption = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                          onPressed: () => openFile(),
-                          child: Flex(
-                            direction: Axis.vertical,
-                            children: const [
-                              Icon(Icons.folder),
-                              Text("Open pdf")
-                            ],
-                          )),
-                      ElevatedButton(
-                          onPressed: () async {
-                            await saveFile();
-                            showDialog(
-                              context: context,
-                              builder: (context) => Text("ok"),
-                            );
-                          },
-                          child: Flex(
-                            direction: Axis.vertical,
-                            children: const [
-                              Icon(Icons.save),
-                              Text("save"),
-                            ],
-                          )),
-                    ],
-                  ),
-                ])
+                Expanded(child: MoveWindow()),
+                const WindowButtons(),
               ],
             ),
           ),
-        ),
+          body
+        ]),
       ),
+    );
+  }
+}
+
+class WindowButtons extends StatelessWidget {
+  const WindowButtons({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        MinimizeWindowButton(),
+        CloseWindowButton(),
+      ],
     );
   }
 }
