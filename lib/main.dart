@@ -13,7 +13,7 @@ Future<void> main() async {
 
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     doWhenWindowReady(() {
-      const initialSize = Size(600, 300);
+      const initialSize = Size(600, 500);
       appWindow.minSize = initialSize;
       appWindow.maxSize = initialSize;
       appWindow.size = initialSize;
@@ -225,31 +225,8 @@ class RightSide extends StatelessWidget {
               colors: [backgroundStartColor, backgroundEndColor],
               stops: const [0.0, 1.0]),
         ),
-        child: Column(children: [
-          WindowTitleBarBox(
-            child: Row(
-              children: [
-                Expanded(child: MoveWindow()),
-                const WindowButtons(),
-              ],
-            ),
-          ),
-          body
-        ]),
+        child: body,
       ),
-    );
-  }
-}
-
-class WindowButtons extends StatelessWidget {
-  const WindowButtons({Key? key}) : super(key: key);
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        MinimizeWindowButton(),
-        CloseWindowButton(),
-      ],
     );
   }
 }
